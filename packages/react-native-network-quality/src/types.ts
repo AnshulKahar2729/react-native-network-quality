@@ -171,7 +171,7 @@ export interface UseNetworkQualityReturn {
    * Respects the timeout and options from hook initialization.
    * Returns the new result or throws on timeout.
    */
-  refresh: () => Promise<NetworkQualityResult>;
+  refresh: () => Promise<NetworkQualityResult | void>;
 
   /**
    * Timestamp of the last successful measurement (ms since epoch).
