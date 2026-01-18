@@ -49,20 +49,6 @@ export interface NetworkMeasurement {
   cellularGeneration: CellularGeneration;
 
   /**
-   * Wi-Fi signal strength in dBm (Received Signal Strength Indicator).
-   * Range: typically -30 (excellent) to -90 (poor).
-   * null if not on Wi-Fi or unavailable.
-   */
-  wifiRssi: number | null;
-
-  /**
-   * Cellular signal strength in dBm (Android only).
-   * Range: varies by technology (LTE: -140 to -44).
-   * null if on Wi-Fi or unavailable.
-   */
-  cellularRssi: number | null;
-
-  /**
    * Round-trip time (RTT) in milliseconds for a TCP connection.
    * Measured via native socket handshake to a reliable endpoint.
    * null if measurement failed or timed out (>500ms).

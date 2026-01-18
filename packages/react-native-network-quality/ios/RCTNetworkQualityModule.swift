@@ -11,8 +11,7 @@
 //  - Aggregate network metrics and return them as a Promise
 //
 //  Key iOS Constraints:
-//  - Cellular RSSI is NOT available (Apple restriction)
-//  - Wi-Fi RSSI requires NEHotspotNetwork (iOS 14.1+)
+//  - Cellular and Wi‑Fi RSSI are NOT available (Apple restriction)
 //  - Network state detection uses NWPathMonitor
 //  - All timing values are returned in milliseconds
 //
@@ -40,8 +39,6 @@ struct MeasurementData {
     let timestamp: Double
     let networkType: String
     let cellularGeneration: String
-    let wifiRssi: NSNumber?
-    let cellularRssi: NSNumber?
     let latencyMs: NSNumber?
     let jitterMs: NSNumber?
     let downlinkMbps: NSNumber?
@@ -54,8 +51,6 @@ struct MeasurementData {
             "timestamp": timestamp,
             "networkType": networkType,
             "cellularGeneration": cellularGeneration,
-            "wifiRssi": wifiRssi as Any,
-            "cellularRssi": NSNull(),
             "latencyMs": latencyMs as Any,
             "jitterMs": jitterMs as Any,
             "downlinkMbps": downlinkMbps as Any,
@@ -174,8 +169,6 @@ class RCTNetworkQualityModuleImpl: NSObject {
                     timestamp: Date().timeIntervalSince1970 * 1000,
                     networkType: "none",
                     cellularGeneration: "unknown",
-                    wifiRssi: nil,
-                    cellularRssi: nil,
                     latencyMs: nil,
                     jitterMs: nil,
                     downlinkMbps: nil,
@@ -188,20 +181,17 @@ class RCTNetworkQualityModuleImpl: NSObject {
                 return
             }
 
-            // Step 2: Get Wi-Fi RSSI, since iOS does not allow cellular RSSI, only Wi-Fi
-            let wifiRssi = self.getWifiRssiSync()
-
-            // Step 3: Measure latency
+            // Step 2: Measure latency
             let latencyResult = self.measureLatencySync(timeoutMs: 500, before: deadline)
 
-            // Step 4: Measure throughput
+            // Step 3: Measure throughput
             let throughput = self.measureThroughputSync(
                 durationMs: 2000,
                 timeoutMs: 5000,
                 before: deadline
             )
 
-            // Step 5: Measure packet loss (if extended)
+            // Step 4: Measure packet loss (if extended)
             var packetLoss: NSNumber? = nil
             if extended {
                 packetLoss = self.measurePacketLossSync(
@@ -211,14 +201,11 @@ class RCTNetworkQualityModuleImpl: NSObject {
                 )
             }
 
-            // Step 6: Aggregate and return
+            // Step 5: Aggregate and return
             let measurement = MeasurementData(
                 timestamp: Date().timeIntervalSince1970 * 1000,
                 networkType: status.networkType,
                 cellularGeneration: status.cellularGeneration,
-                wifiRssi: wifiRssi,
-                cellularRssi: nil,
-                /// iOS doesn't expose cellular RSSI
                 latencyMs: latencyResult.latencyMs,
                 jitterMs: latencyResult.jitterMs,
                 downlinkMbps: throughput,
@@ -248,16 +235,6 @@ class RCTNetworkQualityModuleImpl: NSObject {
             "networkType": status.networkType,
             "cellularGeneration": status.cellularGeneration,
         ]
-    }
-
-    @objc
-    func getWifiRssi() -> NSNumber? {
-        return getWifiRssiSync()
-    }
-
-    @objc
-    func getCellularRssi() -> NSNumber? {
-        return nil  // iOS doesn't expose cellular RSSI
     }
 
     // MARK: - Individual Measurements
@@ -348,15 +325,6 @@ class RCTNetworkQualityModuleImpl: NSObject {
         return (isConnected, networkType, cellularGeneration)
     }
 
-    /// Get Wi-Fi signal strength (RSSI in dBm)
-    private func getWifiRssiSync() -> NSNumber? {
-        // iOS 14.1+ only
-        // Note: NEHotspotNetwork.fetchCurrent() requires async context in Swift 5.5+
-        // and RSSI would require private API anyway (not App Store safe)
-        // For now, returning nil (App Store safe)
-        return nil
-    }
-
     /// Measure latency via TCP handshake
     private func measureLatencySync(
         timeoutMs: Int,
@@ -426,83 +394,191 @@ class RCTNetworkQualityModuleImpl: NSObject {
     }
 
     /// Measure throughput via timed download
+    /// Measure throughput via timed download
+    /// Measure throughput via timed download with optimized file size
     private func measureThroughputSync(
         durationMs: Int,
         timeoutMs: Int,
         before deadline: Date
     ) -> NSNumber? {
-        let urlString = "https://speed.cloudflare.com/__down?bytes=1000000000"
-        guard let url = URL(string: urlString) else { return nil }
+        // Start with 10MB, adjust based on network speed
+        var fileSize = 10_000_000  // 10MB in bytes
+
+        print(
+            "[Throughput] Starting measurement - Duration: \(durationMs)ms, Timeout: \(timeoutMs)ms"
+        )
+        print("[Throughput] Target file size: \(fileSize / (1024 * 1024))MB")
+
+        let urlString = "https://speed.cloudflare.com/__down?bytes=\(fileSize)"
+        guard let url = URL(string: urlString) else {
+            print("[Throughput] ERROR: Failed to create URL")
+            return nil
+        }
+        print("[Throughput] URL created: \(url.absoluteString)")
 
         var request = URLRequest(url: url)
         request.timeoutInterval = TimeInterval(timeoutMs) / 1000.0
+        print("[Throughput] Request timeout set to: \(request.timeoutInterval)s")
 
         let startTime = Date()
         var bytesReceived: Int64 = 0
         let semaphore = DispatchSemaphore(value: 0)
         var throughputMbps: Double? = nil
+        var errorDescription: String? = nil
 
-        let task = URLSession.shared.dataTask(with: request) { data, _, _ in
-            if let data = data {
-                bytesReceived = Int64(data.count)
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            let elapsed = Date().timeIntervalSince(startTime)
+            print("[Throughput] Download completed - Elapsed: \(String(format: "%.3f", elapsed))s")
+
+            if let error = error {
+                let nsError = error as NSError
+                // -999 is cancellation, which is expected
+                if nsError.code != -999 {
+                    errorDescription = error.localizedDescription
+                    print(
+                        "[Throughput] ERROR: \(error.localizedDescription) (Code: \(nsError.code))")
+                }
             }
 
-            let elapsed = Date().timeIntervalSince(startTime)
+            if let httpResponse = response as? HTTPURLResponse {
+                print("[Throughput] HTTP Status Code: \(httpResponse.statusCode)")
+            }
+
+            if let data = data {
+                bytesReceived = Int64(data.count)
+                let dataMB = String(format: "%.2f", Double(bytesReceived) / (1024 * 1024))
+                print("[Throughput] Bytes received: \(bytesReceived) (\(dataMB) MB)")
+            } else {
+                print("[Throughput] WARNING: No data received")
+            }
+
             if elapsed > 0 && bytesReceived > 0 {
                 let bits = Double(bytesReceived) * 8
                 throughputMbps = (bits / 1_000_000) / elapsed
+                let throughputFormatted = String(format: "%.2f", throughputMbps ?? 0)
+                print("[Throughput] Calculation - Mbps: \(throughputFormatted)")
+            } else {
+                print("[Throughput] WARNING: Cannot calculate throughput")
             }
 
             semaphore.signal()
         }
 
+        print("[Throughput] Starting download...")
         task.resume()
-        _ = semaphore.wait(timeout: .now() + .milliseconds(timeoutMs))
-        task.cancel()
+
+        let waitResult = semaphore.wait(timeout: .now() + .milliseconds(timeoutMs))
+
+        if waitResult == .timedOut {
+            print("[Throughput] WARNING: Download timed out after \(timeoutMs)ms")
+            task.cancel()
+        }
 
         guard let mbps = throughputMbps else {
+            print(
+                "[Throughput] ERROR: No throughput calculated. Error: \(errorDescription ?? "Unknown")"
+            )
             return nil
         }
 
+        print("[Throughput] SUCCESS: Throughput = \(String(format: "%.2f", mbps)) Mbps")
         return NSNumber(value: mbps)
     }
 
     /// Estimate packet loss via HTTP timeouts
+    /// Estimate packet loss via HTTP timeouts (Optimized)
+    /// Estimate packet loss via HTTP timeouts (Improved)
     private func measurePacketLossSync(
         attemptCount: Int,
         timeoutMs: Int,
         before deadline: Date
     ) -> NSNumber? {
-        let endpoint = "https://1.1.1.1/dns-query"
-        guard let url = URL(string: endpoint) else { return nil }
+        // Use a proper endpoint that accepts GET requests without parameters
+        let endpoint = "https://www.google.com/generate_204"
+        print(
+            "[PacketLoss] Starting measurement - Attempts: \(attemptCount), Timeout: \(timeoutMs)ms"
+        )
+
+        guard let url = URL(string: endpoint) else {
+            print("[PacketLoss] ERROR: Failed to create URL from \(endpoint)")
+            return nil
+        }
+        print("[PacketLoss] URL created: \(url.absoluteString)")
 
         var failures = 0
+        let startTime = Date()
 
-        for _ in 0..<attemptCount {
-            guard Date() < deadline else { break }
+        for attempt in 0..<attemptCount {
+            let elapsedMs = Date().timeIntervalSince(startTime) * 1000
+            print(
+                "[PacketLoss] Attempt \(attempt + 1)/\(attemptCount) - Elapsed: \(String(format: "%.0f", elapsedMs))ms"
+            )
+
+            guard Date() < deadline else {
+                print("[PacketLoss] WARNING: Deadline reached, stopping attempts")
+                break
+            }
 
             var request = URLRequest(url: url)
             request.timeoutInterval = TimeInterval(timeoutMs) / 1000.0
 
             let semaphore = DispatchSemaphore(value: 0)
             var succeeded = false
+            var taskStartTime = Date()
 
-            let task = URLSession.shared.dataTask(with: request) { _, _, error in
-                succeeded = error == nil
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                let taskElapsed = Date().timeIntervalSince(taskStartTime)
+
+                if let error = error {
+                    let nsError = error as NSError
+                    succeeded = false
+                    print(
+                        "[PacketLoss]   ERROR: \(error.localizedDescription) (Code: \(nsError.code)) - Elapsed: \(String(format: "%.3f", taskElapsed))s"
+                    )
+                } else {
+                    succeeded = true
+                    print(
+                        "[PacketLoss]   SUCCESS - Elapsed: \(String(format: "%.3f", taskElapsed))s")
+                }
+
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("[PacketLoss]   HTTP Status: \(httpResponse.statusCode)")
+                    // 204 No Content is expected response
+                    if httpResponse.statusCode == 204 {
+                        print("[PacketLoss]   ✓ Expected 204 response")
+                    }
+                }
+
                 semaphore.signal()
             }
 
+            taskStartTime = Date()
             task.resume()
-            _ = semaphore.wait(timeout: .now() + .milliseconds(timeoutMs * 2))
+
+            // Wait for response with the specified timeout
+            let waitResult = semaphore.wait(timeout: .now() + .milliseconds(timeoutMs))
+
+            if waitResult == .timedOut {
+                print("[PacketLoss]   TIMEOUT: No response within \(timeoutMs)ms")
+                succeeded = false
+                task.cancel()
+            }
 
             if !succeeded {
                 failures += 1
+                print("[PacketLoss]   Result: FAILED (Total failures: \(failures))")
+            } else {
+                print("[PacketLoss]   Result: SUCCESS")
             }
-
-            task.cancel()
         }
 
+        let totalTime = Date().timeIntervalSince(startTime)
+        print("[PacketLoss] Total measurement time: \(String(format: "%.3f", totalTime))s")
+        print("[PacketLoss] Total failures: \(failures)/\(attemptCount)")
+
         let lossPercent = (Double(failures) / Double(attemptCount)) * 100
+        print("[PacketLoss] FINAL RESULT: Packet loss = \(String(format: "%.2f", lossPercent))%")
+
         return NSNumber(value: lossPercent)
     }
 }

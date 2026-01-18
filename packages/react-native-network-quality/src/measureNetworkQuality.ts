@@ -32,8 +32,6 @@ export async function measureNetworkQuality(
     timestamp: measurement.timestamp,
     networkType: measurement.networkType as any,
     cellularGeneration: measurement.cellularGeneration as any,
-    wifiRssi: measurement.wifiRssi,
-    cellularRssi: measurement.cellularRssi,
     latencyMs: measurement.latencyMs,
     jitterMs: measurement.jitterMs,
     downlinkMbps: measurement.downlinkMbps,

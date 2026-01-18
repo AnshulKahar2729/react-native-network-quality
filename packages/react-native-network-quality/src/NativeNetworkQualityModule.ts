@@ -8,8 +8,6 @@ export interface Spec extends TurboModule {
     timestamp: number;
     networkType: string;
     cellularGeneration: string;
-    wifiRssi: number | null;
-    cellularRssi: number | null;
     latencyMs: number | null;
     jitterMs: number | null;
     downlinkMbps: number | null;
@@ -22,8 +20,6 @@ export interface Spec extends TurboModule {
     timestamp: number;
     networkType: string;
     cellularGeneration: string;
-    wifiRssi: number | null;
-    cellularRssi: number | null;
     latencyMs: number | null;
     jitterMs: number | null;
     downlinkMbps: number | null;
@@ -37,9 +33,6 @@ export interface Spec extends TurboModule {
     networkType: string;
     cellularGeneration: string;
   };
-  
-  getWifiRssi(): number | null;
-  getCellularRssi(): number | null;
   
   measureLatency(options?: { sampleCount?: number; timeoutMs?: number }): Promise<{
     latencyMs: number | null;

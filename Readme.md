@@ -38,8 +38,6 @@ This package **estimates network quality**, not just connectivity.
 |------|----|---------|
 | Network type | OS APIs | iOS / Android |
 | Cellular generation | OS APIs | iOS / Android |
-| Wi-Fi RSSI | Native APIs | iOS / Android |
-| Cellular signal strength | Native APIs | Android only |
 | Latency (RTT) | TCP connect timing | iOS / Android |
 | Jitter | RTT variance | iOS / Android |
 | Download speed | Timed native download | iOS / Android |
@@ -59,14 +57,13 @@ This is intentional and by design.
 ❌ No App Store–violating behavior  
 ❌ No continuous background polling  
 
-> iOS does **not** expose cellular RSSI — this library respects that.
+> iOS does **not** expose cellular or Wi‑Fi RSSI — this library does not use them.
 
 ---
 
 ## How It Works
 
 Native Layer (TurboModule)
-├─ Signal strength (Android)
 ├─ TCP handshake timing
 ├─ Native download timing
 ├─ Failure tracking
@@ -109,19 +106,15 @@ type NetworkQuality =
 ## Platform Differences (Important)
 ### Android
 
-- Full signal strength access
-
 - More accurate radio data
 
 - Best overall quality estimation
 
 ### iOS
 
-- No cellular RSSI (Apple restriction)
+- No cellular or Wi‑Fi RSSI (Apple restriction)
 
-- Wi-Fi RSSI only (limited)
-
-- Quality derived mainly from RTT & throughput
+- Quality derived from RTT & throughput only
 
 - This library normalizes output so your app logic stays consistent.
 

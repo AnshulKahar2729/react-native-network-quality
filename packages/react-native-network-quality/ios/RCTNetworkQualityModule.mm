@@ -14,8 +14,6 @@
                 reject:(RCTPromiseRejectBlock)reject;
 - (NSDictionary *)getLastMeasurement;
 - (NSDictionary *)getConnectivityStatus;
-- (NSNumber *)getWifiRssi;
-- (NSNumber *)getCellularRssi;
 - (void)measureLatency:(NSDictionary *)options
                resolve:(RCTPromiseResolveBlock)resolve
                 reject:(RCTPromiseRejectBlock)reject;
@@ -62,16 +60,6 @@ RCT_EXPORT_SYNCHRONOUS_TYPED_METHOD(NSDictionary *, getLastMeasurement)
 RCT_EXPORT_SYNCHRONOUS_TYPED_METHOD(NSDictionary *, getConnectivityStatus)
 {
     return [_impl getConnectivityStatus];
-}
-
-RCT_EXPORT_SYNCHRONOUS_TYPED_METHOD(NSNumber *, getWifiRssi)
-{
-    return [_impl getWifiRssi];
-}
-
-RCT_EXPORT_SYNCHRONOUS_TYPED_METHOD(NSNumber *, getCellularRssi)
-{
-    return [_impl getCellularRssi];
 }
 
 RCT_EXPORT_METHOD(measureLatency:(NSDictionary *)options

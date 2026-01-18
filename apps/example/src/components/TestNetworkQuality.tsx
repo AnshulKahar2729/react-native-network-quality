@@ -32,10 +32,15 @@ const getColor = (quality: string | null) => {
 };
 
 function HookExample() {
-  const { quality, measurement, isLoading, refresh } = useNetworkQuality();
+  const { quality, measurement, isLoading, refresh, lastMeasuredAt } = useNetworkQuality({
+    extended: true,
+
+  });
 
   return (
     <View style={styles.section}>
+      <Text style={styles.label}>Last Measured At</Text>
+      <Text style={styles.value}>{lastMeasuredAt ? new Date(lastMeasuredAt).toLocaleString() : 'N/A'}</Text>
       <Text style={styles.title}>Hook API</Text>
       {isLoading && <ActivityIndicator size="small" color="#007AFF" />}
       {quality && (
@@ -46,9 +51,24 @@ function HookExample() {
           {measurement && (
             <>
               <Text style={styles.label}>Latency</Text>
-              <Text style={styles.value}>{measurement.latencyMs ? `${measurement.latencyMs.toFixed(0)} ms` : 'N/A'}</Text>
+              <Text style={styles.value}>{typeof measurement.latencyMs === 'number' ? `${measurement.latencyMs.toFixed(0)} ms` : 'N/A'}</Text>
               <Text style={styles.label}>Throughput</Text>
-              <Text style={styles.value}>{measurement.downlinkMbps ? `${measurement.downlinkMbps.toFixed(1)} Mbps` : 'N/A'}</Text>
+              <Text style={styles.value}>{typeof measurement.downlinkMbps === 'number' ? `${measurement.downlinkMbps.toFixed(1)} Mbps` : 'N/A'}</Text>
+              <Text style={styles.label}>Packet Loss</Text>
+              <Text style={styles.value}>  {typeof measurement.packetLossPercent === 'number' ? `${measurement.packetLossPercent.toFixed(1)} %` : 'N/A'}
+              </Text>
+              <Text style={styles.label}>Jitter</Text>
+              <Text style={styles.value}>{typeof measurement.jitterMs === 'number' ? `${measurement.jitterMs.toFixed(1)} ms` : 'N/A'}</Text>
+              <Text style={styles.label}>Is Connected</Text>
+              <Text style={styles.value}>{typeof measurement.isConnected === 'boolean' ? measurement.isConnected ? 'Yes' : 'No' : 'N/A'}</Text>
+              <Text style={styles.label}>Failure Reason</Text>
+              <Text style={styles.value}>{typeof measurement.failureReason === 'string' ? measurement.failureReason : 'N/A'}</Text>
+              <Text style={styles.label}>Network Type</Text>
+              <Text style={styles.value}>{typeof measurement.networkType === 'string' ? measurement.networkType : 'N/A'}</Text>
+              <Text style={styles.label}>Cellular Generation</Text>
+              <Text style={styles.value}>{typeof measurement.cellularGeneration === 'string' ? measurement.cellularGeneration : 'N/A'}</Text>
+              <Text style={styles.label}>Timestamp</Text>
+              <Text style={styles.value}>{measurement.timestamp ? new Date(measurement.timestamp).toLocaleString() : 'N/A'}</Text>
             </>
           )}
         </>
