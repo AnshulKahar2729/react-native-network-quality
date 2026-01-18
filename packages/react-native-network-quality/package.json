@@ -1,13 +1,46 @@
 {
     "name": "react-native-network-quality",
-    "version": "0.1.0",
+    "version": "1.0.0",
+    "description": "A React Native TurboModule for measuring network quality metrics including throughput, packet loss, and latency",
     "main": "lib/index.js",
     "types": "lib/index.d.ts",
     "source": "src/index.ts",
+    "homepage": "https://github.com/anshulkahar2729/react-native-network-quality",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/anshulkahar2729/react-native-network-quality.git"
+    },
+    "bugs": {
+        "url": "https://github.com/anshulkahar2729/react-native-network-quality/issues"
+    },
+    "keywords": [
+        "react-native",
+        "network",
+        "quality",
+        "throughput",
+        "packet-loss",
+        "latency",
+        "monitoring",
+        "turbomodule",
+        "network-monitoring",
+        "ios",
+        "android"
+    ],
+    "author": "Anshul Kahar <anshulkahar2211@gmail.com>",
+    "license": "MIT",
     "scripts": {
         "build": "tsc",
-        "codegen": "react-native-codegen-cli generate --sourceDir . --outputDir . --libraryType all"
+        "codegen": "react-native-codegen-cli generate --sourceDir . --outputDir . --libraryType all",
+        "prepublishOnly": "npm run build",
+        "prepare": "npm run build"
     },
+    "files": [
+        "lib",
+        "src",
+        "ios",
+        "android",
+        "react-native-network-quality.podspec"
+    ],
     "peerDependencies": {
         "react": ">=18.0.0",
         "react-native": ">=0.73.0"

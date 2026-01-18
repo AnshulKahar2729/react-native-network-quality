@@ -10,6 +10,42 @@ and **New Architecture (TurboModules)**.
 
 ---
 
+## Installation
+
+```bash
+npm install react-native-network-quality
+# or
+yarn add react-native-network-quality
+```
+
+## Usage
+
+```typescript
+import { NetworkQualityModule } from 'react-native-network-quality';
+
+// Measure throughput
+const throughputMbps = await NetworkQualityModule.measureThroughputSync(
+  durationMs: 2000,
+  timeoutMs: 5000
+);
+console.log(`Throughput: ${throughputMbps} Mbps`);
+
+// Measure packet loss
+const packetLossPercent = await NetworkQualityModule.measurePacketLossSync(
+  attemptCount: 10,
+  timeoutMs: 500
+);
+console.log(`Packet Loss: ${packetLossPercent}%`);
+
+// Get network quality score
+const qualityScore = await NetworkQualityModule.calculateNetworkQualityScore(
+  throughputMbps: 150,
+  packetLossPercent: 0.5
+);
+console.log(`Quality Score: ${qualityScore}/100`);
+```
+
+
 ## Why This Library Exists
 
 Most apps only know:
@@ -129,3 +165,15 @@ type NetworkQuality =
 - Designed for on-demand checks
  
 - You control when and how often measurements run.
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines and submit PRs to our GitHub repository.
+
+## License
+
+React native network quality is licensed under The MIT License.
+
+## Support
+
+For issues, questions, or suggestions, please open an issue on [GitHub](https://github.com/anshulkahar2729/react-native-network-quality/issues).

@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+__tests__/
+__test__/
+.test/
+*.test.ts
+*.spec.ts
+
+# Build
+*.tsbuildinfo
+
+# Examples
+example/
+examples/
+demo/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Documentation
+docs/
+*.md
+
+# Source files (only include compiled lib)
+src/
+tsconfig.json
