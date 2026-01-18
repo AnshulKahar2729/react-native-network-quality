@@ -33,7 +33,6 @@ import Network
 import NetworkExtension
 import React
 
-
 // MARK: - Data Models
 
 /// Network measurement data
@@ -69,12 +68,10 @@ struct MeasurementData {
 
 // MARK: - TurboModule Implementation
 
-@objc(RCTNetworkQualityModule)
-/// This class implements the TurboModule interface for the NetworkQualityModule.
-/// It is responsible for measuring the network quality using native iOS APIs.
-/// It is also responsible for returning the results to the JavaScript layer.
-/// @objc means this class can be used from Objective-C code.
-class RCTNetworkQualityModule: NSObject {
+@objc(RCTNetworkQualityModuleImpl)
+/// This class implements the actual network quality measurement logic.
+/// It is called by the ObjC++ wrapper (RCTNetworkQualityModule.mm).
+class RCTNetworkQualityModuleImpl: NSObject {
 
     // MARK: - Properties
 
@@ -122,14 +119,7 @@ class RCTNetworkQualityModule: NSObject {
         pathMonitor.start(queue: queue)
     }
 
-    // MARK: - Required TurboModule Methods
-
-    @objc
-    /// @objc means exposed to React native world, and false -> means it won't run on main thread, instead on background thread.
-    /// static because React Native must decide the thread before the object exists.
-    static func requiresMainQueueSetup() -> Bool {
-        return false  // We do network I/O, run on background queue
-    }
+    // MARK: - Implementation Methods
 
     // MARK: - Primary Measurement
 
@@ -148,24 +138,24 @@ class RCTNetworkQualityModule: NSObject {
     /// But RN consumer calls it like this:
     /// const measurement = await NetworkQualityModule.measureNetwork({ extended: true, timeoutMs: 3000 });
     /// so since this a promise based method, we need to define to extra props(withResolver, withRejecter) while doing @objc
-    @objc(measureNetwork:withResolver:withRejecter:)
+    @objc
     func measureNetwork(
-        options: [String: Any]?,
-        resolver: @escaping RCTPromiseResolveBlock,
-        rejecter: @escaping RCTPromiseRejectBlock
+        _ options: [String: Any]?,
+        resolve resolver: @escaping RCTPromiseResolveBlock,
+        reject rejecter: @escaping RCTPromiseRejectBlock
     ) {
         /// Network tests are expensive, never block the main thread
         queue.async { [weak self] in
-            
+
             /// unwrap self, if App backgrounded, JS bridge unloaded
             guard let self = self else { return }
 
             /// default extened options are true
             let extended = options?["extended"] as? Bool ?? true
-            
+
             /// default timeoutms is 3000
             let timeoutMs = options?["timeoutMs"] as? Int ?? 3000
-            
+
             let deadline = Date().addingTimeInterval(Double(timeoutMs) / 1000.0)
 
             // Step 1: Check connectivity
@@ -178,7 +168,6 @@ class RCTNetworkQualityModule: NSObject {
 
             let status = self.getConnectivityStatusSync()
 
-            
             if !status.isConnected {
                 /// early exit if device is offline.
                 let measurement = MeasurementData(
@@ -211,7 +200,7 @@ class RCTNetworkQualityModule: NSObject {
                 timeoutMs: 5000,
                 before: deadline
             )
-            
+
             // Step 5: Measure packet loss (if extended)
             var packetLoss: NSNumber? = nil
             if extended {
@@ -228,10 +217,11 @@ class RCTNetworkQualityModule: NSObject {
                 networkType: status.networkType,
                 cellularGeneration: status.cellularGeneration,
                 wifiRssi: wifiRssi,
-                cellularRssi: nil,  /// iOS doesn't expose cellular RSSI
+                cellularRssi: nil,
+                /// iOS doesn't expose cellular RSSI
                 latencyMs: latencyResult.latencyMs,
                 jitterMs: latencyResult.jitterMs,
-                downlinkMbps: throughput?.downlinkMbps,
+                downlinkMbps: throughput,
                 packetLossPercent: packetLoss,
                 isConnected: status.isConnected,
                 failureReason: nil
@@ -244,13 +234,13 @@ class RCTNetworkQualityModule: NSObject {
 
     // MARK: - State Queries (Sync)
 
-    @objc(getLastMeasurement)
+    @objc
     func getLastMeasurement() -> [String: Any]? {
         guard let last = lastMeasurement else { return nil }
         return last.toDictionary()
     }
 
-    @objc(getConnectivityStatus)
+    @objc
     func getConnectivityStatus() -> [String: Any] {
         let status = getConnectivityStatusSync()
         return [
@@ -260,23 +250,23 @@ class RCTNetworkQualityModule: NSObject {
         ]
     }
 
-    @objc(getWifiRssi)
+    @objc
     func getWifiRssi() -> NSNumber? {
         return getWifiRssiSync()
     }
 
-    @objc(getCellularRssi)
+    @objc
     func getCellularRssi() -> NSNumber? {
         return nil  // iOS doesn't expose cellular RSSI
     }
 
     // MARK: - Individual Measurements
 
-    @objc(measureLatency:withResolver:withRejecter:)
+    @objc
     func measureLatency(
-        options: [String: Any]?,
-        resolver: @escaping RCTPromiseResolveBlock,
-        rejecter: @escaping RCTPromiseRejectBlock
+        _ options: [String: Any]?,
+        resolve resolver: @escaping RCTPromiseResolveBlock,
+        reject rejecter: @escaping RCTPromiseRejectBlock
     ) {
         queue.async { [weak self] in
             let sampleCount = options?["sampleCount"] as? Int ?? 3
@@ -291,11 +281,11 @@ class RCTNetworkQualityModule: NSObject {
         }
     }
 
-    @objc(measureThroughput:withResolver:withRejecter:)
+    @objc
     func measureThroughput(
-        options: [String: Any]?,
-        resolver: @escaping RCTPromiseResolveBlock,
-        rejecter: @escaping RCTPromiseRejectBlock
+        _ options: [String: Any]?,
+        resolve resolver: @escaping RCTPromiseResolveBlock,
+        reject rejecter: @escaping RCTPromiseRejectBlock
     ) {
         queue.async { [weak self] in
             let durationMs = options?["durationMs"] as? Int ?? 2000
@@ -307,15 +297,15 @@ class RCTNetworkQualityModule: NSObject {
                 timeoutMs: timeoutMs,
                 before: deadline
             )
-            resolver(result?.downlinkMbps as Any)
+            resolver(result as Any)
         }
     }
 
-    @objc(measurePacketLoss:withResolver:withRejecter:)
+    @objc
     func measurePacketLoss(
-        options: [String: Any]?,
-        resolver: @escaping RCTPromiseResolveBlock,
-        rejecter: @escaping RCTPromiseRejectBlock
+        _ options: [String: Any]?,
+        resolve resolver: @escaping RCTPromiseResolveBlock,
+        reject rejecter: @escaping RCTPromiseRejectBlock
     ) {
         queue.async { [weak self] in
             let attemptCount = options?["attemptCount"] as? Int ?? 10
@@ -337,7 +327,7 @@ class RCTNetworkQualityModule: NSObject {
     private func getConnectivityStatusSync() -> (
         isConnected: Bool, networkType: String, cellularGeneration: String
     ) {
-        guard let path: NWPath = currentPath else {
+        guard let path = currentPath else {
             return (false, "unknown", "unknown")
         }
 
@@ -345,11 +335,11 @@ class RCTNetworkQualityModule: NSObject {
         var networkType: String = "none"
         var cellularGeneration = "unknown"
 
-        if path.usesInterfaceType(.wifi) {
+        if path.usesInterfaceType(NWInterface.InterfaceType.wifi) {
             networkType = "wifi"
-        } else if path.usesInterfaceType(.cellular) {
+        } else if path.usesInterfaceType(NWInterface.InterfaceType.cellular) {
             networkType = "cellular"
-        } else if path.usesInterfaceType(.wiredEthernet) {
+        } else if path.usesInterfaceType(NWInterface.InterfaceType.wiredEthernet) {
             networkType = "wifi"
         } else {
             networkType = isConnected ? "unknown" : "none"
@@ -361,13 +351,9 @@ class RCTNetworkQualityModule: NSObject {
     /// Get Wi-Fi signal strength (RSSI in dBm)
     private func getWifiRssiSync() -> NSNumber? {
         // iOS 14.1+ only
-        if #available(iOS 14.1, *) {
-            guard let network = try? NEHotspotNetwork.fetchCurrent() else {
-                return nil
-            }
-            // Note: RSSI via private API - returns nil for now (App Store safe)
-            return nil
-        }
+        // Note: NEHotspotNetwork.fetchCurrent() requires async context in Swift 5.5+
+        // and RSSI would require private API anyway (not App Store safe)
+        // For now, returning nil (App Store safe)
         return nil
     }
 
@@ -378,7 +364,7 @@ class RCTNetworkQualityModule: NSObject {
     ) -> (latencyMs: NSNumber?, jitterMs: NSNumber?) {
         /// cloudflare -> 1.1.1.1 and 443 -> for https
         let endpoint = NWEndpoint.hostPort(host: "1.1.1.1", port: 443)
-        
+
         /// Stores multiple round-trip times.
         var rtts: [Double] = []
 
@@ -389,7 +375,7 @@ class RCTNetworkQualityModule: NSObject {
 
             let startTime = Date()
             let connection = NWConnection(to: endpoint, using: .tcp)
-            
+
             /// Allows blocking until handshake completes.
             let group = DispatchGroup()
             group.enter()
@@ -405,10 +391,10 @@ class RCTNetworkQualityModule: NSObject {
             }
 
             connection.start(queue: queue)
-            _ = group.wait(timeout: .milliseconds(timeoutMs))
+            _ = group.wait(timeout: .now() + .milliseconds(timeoutMs))
 
             let elapsed = Date().timeIntervalSince(startTime) * 1000
-            
+
             /// cleanup
             connection.cancel()
 
@@ -419,24 +405,24 @@ class RCTNetworkQualityModule: NSObject {
 
         /// if we dont exit early, ahead we are going to divide by rtts.count and if it becomes zero, it will crash at division.
         guard !rtts.isEmpty else {
-            return (nil, nil)
+            return (latencyMs: nil, jitterMs: nil)
         }
 
         /// reduce(0, +) -> Start from 0 and keep adding every RTT value
         /// Double(rtts.count) to keep the same types as of rtts
         /// simply total rtts/ number of rtts
         let avg = rtts.reduce(0, +) / Double(rtts.count)
-        
+
         /// variance = Σ (RTT − avg)² / N
         /// $0 -> short hand for element
         /// pow($0 - avg, 2) -> (element - avg)²
         let variance = rtts.map { pow($0 - avg, 2) }.reduce(0, +) / Double(rtts.count)
-        
+
         /// So when you say “jitter”, you’re saying:
         /// “How much RTT fluctuates around its average”
         let jitter = rtts.count > 1 ? sqrt(variance) : nil
 
-        return (NSNumber(value: avg), jitter.map { NSNumber(value: $0) })
+        return (latencyMs: NSNumber(value: avg), jitterMs: jitter.map { NSNumber(value: $0) })
     }
 
     /// Measure throughput via timed download
@@ -444,7 +430,7 @@ class RCTNetworkQualityModule: NSObject {
         durationMs: Int,
         timeoutMs: Int,
         before deadline: Date
-    ) -> (downlinkMbps: NSNumber?)? {
+    ) -> NSNumber? {
         let urlString = "https://speed.cloudflare.com/__down?bytes=1000000000"
         guard let url = URL(string: urlString) else { return nil }
 
@@ -471,14 +457,14 @@ class RCTNetworkQualityModule: NSObject {
         }
 
         task.resume()
-        _ = semaphore.wait(timeout: .milliseconds(timeoutMs))
+        _ = semaphore.wait(timeout: .now() + .milliseconds(timeoutMs))
         task.cancel()
 
         guard let mbps = throughputMbps else {
-            return (nil)
+            return nil
         }
 
-        return (NSNumber(value: mbps))
+        return NSNumber(value: mbps)
     }
 
     /// Estimate packet loss via HTTP timeouts
@@ -507,7 +493,7 @@ class RCTNetworkQualityModule: NSObject {
             }
 
             task.resume()
-            _ = semaphore.wait(timeout: .milliseconds(timeoutMs * 2))
+            _ = semaphore.wait(timeout: .now() + .milliseconds(timeoutMs * 2))
 
             if !succeeded {
                 failures += 1

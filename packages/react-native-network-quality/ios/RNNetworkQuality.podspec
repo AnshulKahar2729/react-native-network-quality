@@ -1,6 +1,10 @@
+require 'json'
+
+package = JSON.parse(File.read(File.join(__dir__, '../package.json')))
+
 Pod::Spec.new do |s|
   s.name             = "RNNetworkQuality"
-  s.version          = "1.0.0"
+  s.version          = package['version']
   s.summary          = "React Native network quality measurement library"
 
   s.description      = <<-DESC
@@ -9,23 +13,25 @@ Pod::Spec.new do |s|
   DESC
 
   s.homepage         = "https://github.com/AnshulKahar2729/react-native-network-quality"
-  s.license          = { :type => "MIT", :file => "LICENSE" }
+  s.license          = { :type => "MIT" }
   s.author           = { "Anshul Kahar" => "anshulkahar2211@gmail.com" }
 
-  s.platform         = :ios, "13.0"
-  s.source           = { :path => "." }
+  s.platforms        = { :ios => "13.4" }
+  s.source           = { :git => "https://github.com/AnshulKahar2729/react-native-network-quality.git", :tag => "v#{s.version}" }
 
   # Swift
   s.swift_version    = "5.3"
   s.requires_arc     = true
-  s.static_framework = true
+
+  # Source files
+  s.source_files     = "*.{h,m,mm,swift}"
+
+  # Pod target configuration
   s.pod_target_xcconfig = {
     "DEFINES_MODULE" => "YES"
   }
 
-  # Source files
-  s.source_files     = "ios/**/*.{h,m,mm,swift}"
-
+  # Dependencies
   s.dependency "React-Core"
 
   # System frameworks
@@ -34,7 +40,4 @@ Pod::Spec.new do |s|
     "Network",
     "NetworkExtension"
   ]
-
-  # TurboModule flag
-  s.compiler_flags = "-DRNM_TURBOMODULE=1"
 end

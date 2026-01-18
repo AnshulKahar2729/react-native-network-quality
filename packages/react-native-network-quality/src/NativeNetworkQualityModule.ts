@@ -1,6 +1,8 @@
 import type { TurboModule } from 'react-native';
 import { TurboModuleRegistry } from 'react-native';
 
+// This is required for codegen to recognize this as a TurboModule spec
+// @ts-ignore
 export interface Spec extends TurboModule {
   measureNetwork(options?: { extended?: boolean; timeoutMs?: number }): Promise<{
     timestamp: number;

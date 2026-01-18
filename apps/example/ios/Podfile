@@ -17,6 +17,9 @@ end
 target 'example' do
   config = use_native_modules!
 
+  # Manually add our network quality module
+  pod 'RNNetworkQuality', :path => '../../../packages/react-native-network-quality/ios'
+
   use_react_native!(
     :path => config[:reactNativePath],
     # An absolute path to your application root.

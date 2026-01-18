@@ -5,16 +5,17 @@
     "types": "lib/index.d.ts",
     "source": "src/index.ts",
     "scripts": {
-        "build": "tsc"
+        "build": "tsc",
+        "codegen": "react-native-codegen-cli generate --sourceDir . --outputDir . --libraryType all"
     },
     "peerDependencies": {
-        "react": ">=16.0.0",
+        "react": ">=18.0.0",
         "react-native": ">=0.73.0"
     },
     "devDependencies": {
-        "@types/react": "^18.2.0",
-        "@types/react-native": "^0.73.0",
-        "typescript": "^5.9.3"
+        "@types/react": "19.2.0",
+        "@types/react-native": "0.83.0",
+        "typescript": "5.9.3"
     },
     "codegenConfig": {
         "libraries": [
@@ -25,5 +26,6 @@
                 "iosSrcsDir": "ios"
             }
         ]
-    }
+    },
+    "react-native": "src/index.ts"
 }
